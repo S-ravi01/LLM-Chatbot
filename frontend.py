@@ -1,6 +1,6 @@
 import streamlit as st
 from langchain_core.messages import HumanMessage
-from backend import chatbot
+from backend import chatbot,get_threads
 import time
 import uuid
 
@@ -44,13 +44,13 @@ if 'thread_id' not in st.session_state:
     st.session_state['thread_id'] = str(generate_threadId())
 
 if 'chat_threads' not in st.session_state:
-    st.session_state['chat_threads'] = []
+    st.session_state['chat_threads'] = get_threads()
 
 add_thread(st.session_state['thread_id'])
 
 # *************************** UI elements ****************************
 
-st.sidebar.header("LLM Chatbot")
+st.sidebar.title("LLM Chatbot")
 
 if st.sidebar.button('New Chat'):
     reset_chat()
