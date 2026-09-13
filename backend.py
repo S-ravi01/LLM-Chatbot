@@ -15,7 +15,7 @@ DATABASE_FILE = DATABASE_DIRECTORY / "chat_history.db"
 DATABASE_DIRECTORY.mkdir(parents=True,exist_ok=True)
 
 conn =  sqlite3.connect(DATABASE_FILE,check_same_thread=False)                  # connction object
-
+cursor = conn.cursor()
 # build model
 model = ChatOllama(model='gemma4:12b',temperature=0)
 
@@ -56,6 +56,11 @@ def get_threads():
         threads_list.add (thread.config['configurable']['thread_id'])
     return list(threads_list)
 
+def remove_thread_from_db(thread_id):
+
+    if thread_id in get_threads():
+        cursor.execute("DELETE FROM checkpoints WHERE thread_id = ?",(thread_id,))
+        conn.commit()
 
 # print(list(threads_list))
 

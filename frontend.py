@@ -1,6 +1,6 @@
 import streamlit as st
 from langchain_core.messages import HumanMessage
-from backend import chatbot,get_threads
+from backend import chatbot,get_threads,remove_thread_from_db
 import time
 import uuid
 
@@ -32,9 +32,9 @@ def steam_reponse():
     config=CONFIG):
 
         yield message_chunk.content 
+
+
     
-
-
 # *************************** session setup ****************************
 
 if 'message_history' not in st.session_state:
@@ -50,29 +50,60 @@ add_thread(st.session_state['thread_id'])
 
 # *************************** UI elements ****************************
 
-st.sidebar.title("LLM Chatbot")
-
-if st.sidebar.button('New Chat'):
-    reset_chat()
-
-st.sidebar.title("Conversion history")
+with st.sidebar:
+    st.title("LLM Chatbot")
+    if st.button('New Chat', icon ="📝",icon_position='right'):
+        reset_chat()
+    st.title("Conversion history")
 
 # st.sidebar.button(str(generate_threadId()))
 
-for thread_id in st.session_state['chat_threads'][::-1]:
-    if st.sidebar.button(str(thread_id)):
-        st.session_state['thread_id'] = thread_id
-        message = load_conversation(thread_id)
+    for thread_id in st.session_state['chat_threads'][::-1]:
 
-        temp_msg = []
+        title, delete = st.columns([0.85,0.15])
 
-        for msg in message:
-            if isinstance(msg,HumanMessage):
-                role = 'user'
-            else:
-                role = 'ai'
-            temp_msg.append({'role' : role, 'content' : msg.content})
-        st.session_state['message_history'] = temp_msg
+        with title:
+            if st.button(
+                str(thread_id),
+                use_container_width=True,
+                width='stretch',
+                wrap=False
+            ):
+
+                st.session_state['thread_id'] = thread_id
+
+                message = load_conversation(thread_id)
+                temp_msg = []
+
+                for msg in message:
+                    if isinstance(msg,HumanMessage):
+                        role = 'user'
+                    else:
+                        role = 'ai'
+                    temp_msg.append({'role' : role, 'content' : msg.content})
+                st.session_state['message_history'] = temp_msg
+
+
+        with delete:
+            if delete.button(
+                str("🗑️"),
+                key=f"delete_{thread_id}",
+                help='delete this chat'
+                ):
+
+                remove_thread_from_db(thread_id)
+
+                st.session_state['chat_threads'].remove(thread_id)
+
+                if st.session_state.get("thread_id") == thread_id:
+                    st.session_state['thread_id'] == None
+
+                st.rerun()
+        
+
+# title.button("chat title will be here",use_container_width=True,)
+# if delete.button("🗑️"):
+#     remove_thread("d4c5d02b-4e08-49ac-aa83-b326f72487b3")
 
 
 # *************************** Main UI ****************************
