@@ -6,6 +6,13 @@ from langgraph.graph.message import add_messages
 from langgraph.checkpoint.sqlite import SqliteSaver
 import sqlite3
 from pathlib import Path
+
+from langgraph.prebuilt import ToolNode,tools_condition
+from langchain_core.tools import tool
+from langchain_classic.tools import ddg_search
+from langchain_community.tools import DuckDuckGoSearchRun
+
+
 # from frontend import CONFIG
 
 
@@ -16,8 +23,41 @@ DATABASE_DIRECTORY.mkdir(parents=True,exist_ok=True)
 
 conn =  sqlite3.connect(DATABASE_FILE,check_same_thread=False)                  # connction object
 cursor = conn.cursor()
+
+
+search_tool = DuckDuckGoSearchRun()
+
+@tool
+def calculator(a : float , b : float, operation : str) -> float:
+
+    """this function takes 2 argument numebrs and apply provided mathemactical operation on them and return the result """
+
+    try:
+        if operation == 'add':
+            result =  a + b
+        elif operation == 'sub':
+            result = a - b
+        elif operation == 'mul':
+            result = a + b
+        elif operation == 'div':
+            if a == 0 or b == 0 :
+                return {'error' : 'Divison by 0 is not allowed'}
+            else:
+                result = a / b
+        else:
+            return {'error' : 'unsupported operation'}
+
+        return {'first_num': a , 'second_num' : b,'openration': operation, 'result': result}
+    except Exception as e:
+        return{'error' : str(e)}
+        
+
+tools = [calculator,search_tool]
+
+tool_node = ToolNode(tools)
+
 # build model
-model = ChatOllama(model='gemma4:12b',temperature=0)
+model = ChatOllama(model='gemma4:12b',temperature=0).bind_tools(tools)
 
 class ChatState(TypedDict):
     messages : Annotated[list[HumanMessage],add_messages]
@@ -35,16 +75,20 @@ checkpoint = SqliteSaver(conn=conn)
 graph = StateGraph(ChatState)
 
 graph.add_node('chat_node',chat_node)
+graph.add_node('tools',tool_node)
 
 graph.add_edge(START,'chat_node')
-graph.add_edge('chat_node',END)
+graph.add_conditional_edges('chat_node',tools_condition)
+graph.add_edge('tools','chat_node')
 
 
-# CONFIG = {'configurable': {'thread_id': 'thread_2'}}
+
 chatbot =  graph.compile(checkpointer=checkpoint)
 
+# CONFIG = {'configurable': {'thread_id': 'thread_2'}}
+
 # response = chatbot.invoke(
-#     {'messages': [HumanMessage(content="what is capital of belgium")]},
+#     {'messages': [HumanMessage(content="search on web what is pune weather today ")]},
 #     config=CONFIG)
 
 # print(response)
